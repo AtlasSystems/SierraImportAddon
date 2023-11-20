@@ -308,6 +308,7 @@ function SierraApi:GetAccessTokenResponse (clientKey, clientSecret)
         return credentialWebClient:UploadString(authTokenUrl, uploadMethod, uploadBody)
     end)
 
+    credentialWebClient:Dispose();
 
     if (not authUploadSuccess) then
         SierraApi.Log:Warn("Failure occurred while obtaining access token.")
@@ -378,10 +379,12 @@ function SierraApi:GetItems (bibId, volume, exact)
 
     SierraApi.Log:DebugFormat("Getting item data using API url: {0}", queryUrl)
 
+    local webClient = self:BuildItemsWebClient();
     local querySucceeded, queryResult = pcall(function()
-        local webClient = self:BuildItemsWebClient()
         return webClient:DownloadString(queryUrl)
     end)
+
+    webClient:Dispose();
 
     if not querySucceeded then
         SierraApi.Log:ErrorFormat("Unsuccessful Items API call using url: {0}", queryUrl)
