@@ -749,10 +749,13 @@ function SierraApi:Base64Encode (plainText)
 	objectArray[0] = plainText;
 
     --[[
-        StringToBase64 is a static C# method with the following code:
+        StringToBase64 is the following C# method:
 
-            byte[] bytes = Encoding.UTF8.GetBytes(input);
-            return Convert.ToBase64String(bytes);
+            public static string StringToBase64(string input)
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(input);
+                return Convert.ToBase64String(bytes);
+            }
     ]]
 	local textBase64 = Base64Converter:GetMethod("StringToBase64"):Invoke(nil, objectArray);
 
