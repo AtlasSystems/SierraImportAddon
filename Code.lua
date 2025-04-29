@@ -28,13 +28,6 @@ luanet.load_assembly("System")
 luanet.load_assembly("Newtonsoft.Json")
 luanet.load_assembly("log4net")
 
-local Types = {};
-Types["System.Type"] = luanet.import_type("System.Type");
-Types["System.Array"] = luanet.import_type("System.Array");
-Types["System.Reflection.Assembly"] = luanet.import_type("System.Reflection.Assembly");
-
-local Base64Converter = Types["System.Reflection.Assembly"].LoadFile(AddonInfo.Directory .. "\\Base64Converter.dll"):GetType("Base64Converter.Base64Converter");
-
 JsonParser = {}
 JsonParser.__index = JsonParser
 JsonParser.NIL = {}
@@ -191,7 +184,11 @@ SierraApi.Types["WebClient"] = luanet.import_type("System.Net.WebClient")
 SierraApi.Types["NameValueCollection"] = luanet.import_type("System.Collections.Specialized.NameValueCollection")
 SierraApi.Types["System.Type"] = luanet.import_type("System.Type")
 SierraApi.Types["StreamReader"] = luanet.import_type("System.IO.StreamReader");
+SierraApi.Types["System.Type"] = luanet.import_type("System.Type");
+SierraApi.Types["System.Array"] = luanet.import_type("System.Array");
+SierraApi.Types["System.Reflection.Assembly"] = luanet.import_type("System.Reflection.Assembly");
 
+local Base64Converter = SierraApi.Types["System.Reflection.Assembly"].LoadFile(AddonInfo.Directory .. "\\Base64Converter.dll"):GetType("Base64Converter.Base64Converter");
 
 SierraApi.UrlSuffixes = {}
 SierraApi.UrlSuffixes.Token = "/token"
@@ -748,7 +745,7 @@ function SierraApi:Base64Encode (plainText)
     -- local textBase64 = SierraApi.Types["Convert"].ToBase64String(textUTF8)
 
     -- Arguments passed to Invoke must be in an object array.
-    local objectArray = Types["System.Array"].CreateInstance(Types["System.Type"].GetType("System.Object"), 1);
+    local objectArray = SierraApi.Types["System.Array"].CreateInstance(SierraApi.Types["System.Type"].GetType("System.Object"), 1);
 	objectArray[0] = plainText;
 
     --[[
@@ -758,8 +755,6 @@ function SierraApi:Base64Encode (plainText)
             return Convert.ToBase64String(bytes);
     ]]
 	local textBase64 = Base64Converter:GetMethod("StringToBase64"):Invoke(nil, objectArray);
-
-    LogDebug(">>>>> base64: " .. tostring(textBase64));
 
     return textBase64;
 end
