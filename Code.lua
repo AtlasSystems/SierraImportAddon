@@ -150,9 +150,6 @@ Utility = {}
 Utility.__index = Utility
 
 function Utility.Trim(s)
-    if not s then
-        return "";
-    end
     return (s:gsub("^%s*(.-)%s*$", "%1"));
 end
 
@@ -410,7 +407,7 @@ function SierraApi:GetItems (bibId, volume, exact)
             local entryId = v_entry.id or ""
             local v_volume = SierraApi:GetVarFieldValue(v_entry, "v")
 
-            if v_volume and v_volume ~= "" then
+            if v_volume and v_volume ~= "" and volume and volume ~= "" then
                 if exact then
                     if Utility.Trim(volume) == Utility.Trim(v_volume) then
                         SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (exact).", entryId)
