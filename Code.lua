@@ -647,7 +647,7 @@ function SierraApi:HandleUploadError(returnedError)
 				local responseContent = streamReader:ReadToEnd();
                 local response = JsonParser:ParseJSON(tostring(responseContent));
 
-				message = message .. "\r\nDetails: " .. (response["httpStatus"] or "") .. " - " .. (response["name"] or "") .. " - " .. (response["description"] or "");
+				message = message .. "\r\nDetails: " .. (response["httpStatus"] or "") .. " - " .. (response["code"] or "") .. " - " .. (response["name"] or "") .. " - " .. (response["description"] or "");
 			end
 		end
 	elseif returnedError then
@@ -656,43 +656,6 @@ function SierraApi:HandleUploadError(returnedError)
 
     return message;
 end
-
-function SierraApi:HandleSierraApiError (errorMessageOpener, infoResponse)
-    --[[
-        Formats and raises an error based on a
-        bad response from Sierra's info API.
-
-        The error message opener should be a short
-        summary of the error, including the name of
-        the API endpoint that raised the error. 
-    ]]
-
-    if type(infoResponse) == "string" then
-        infoResponse = JsonParser:ParseJSON(infoResponse)
-    end
-
-    local message = errorMessageOpener
-
-    if infoResponse.httpStatus then
-        message = message .. string.format(" (HTTP Status: %s)", infoResponse.httpStatus)
-    end
-
-    if infoResponse.code then
-        message = message .. string.format(" (Error Code: %d)", infoResponse.code)
-    end
-
-    if infoResponse.name then
-        message = message .. string.format(" (Error Message: %s)", infoResponse.name)
-    end
-
-    if infoResponse.description then
-        message = message .. string.format(" (Error Description: %s)", infoResponse.description)
-    end
-
-    SierraApi.Log:DebugFormat("Generated error message: {0}", message)
-    error({ Code = infoResponse.code, Message = message })
-end
-
 
 function SierraApi:Base64Encode (plainText)
     --[[
