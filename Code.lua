@@ -50,7 +50,7 @@ function JsonParser:ParseJSON (jsonString)
 
         Supports nested objects and arrays.
     ]]
-
+    
     local stringReader = JsonParser.Types["StringReader"](jsonString)
     local reader = JsonParser.Types["JsonTextReader"](stringReader)
 
@@ -150,7 +150,10 @@ Utility = {}
 Utility.__index = Utility
 
 function Utility.Trim(s)
-    return (s:gsub("^%s*(.-)%s*$", "%1"))
+    if not s then
+        return "";
+    end
+    return (s:gsub("^%s*(.-)%s*$", "%1"));
 end
 
 --[[
@@ -390,38 +393,40 @@ function SierraApi:GetItems (bibId, volume, exact)
 
     webClient:Dispose();
 
+    local matchingItems = {};
+
     if not querySucceeded then
-        SierraApi.Log:ErrorFormat("Unsuccessful Items API call using url: {0}", queryUrl)
-        SierraApi:HandleUploadError(queryResult, SierraApi.ApiEndpoints.items)
-    end
+        SierraApi.Log:ErrorFormat("Unsuccessful Items API call using url: {0}", queryUrl);
+        local errorMessage = SierraApi:HandleUploadError(queryResult);
+        SierraApi.Log:Debug(errorMessage);
+    else
+        SierraApi.Log:DebugFormat("Sierra Items API Response: {0}", queryResult)
+        local parsedResult = JsonParser:ParseJSON(queryResult)
 
-    SierraApi.Log:DebugFormat("Sierra Items API Response: {0}", queryResult)
-    local matchingItems = {}
-    local parsedResult = JsonParser:ParseJSON(queryResult)
+        for i_entry, v_entry in ipairs(parsedResult.entries or {}) do
+            -- i_entry == index
+            -- v_entry == value
 
-    for i_entry, v_entry in ipairs(parsedResult.entries or {}) do
-        -- i_entry == index
-        -- v_entry == value
+            local entryId = v_entry.id or ""
+            local v_volume = SierraApi:GetVarFieldValue(v_entry, "v")
 
-        local entryId = v_entry.id or ""
-        local v_volume = SierraApi:GetVarFieldValue(v_entry, "v")
-
-        if v_volume and v_volume ~= "" then
-            if exact then
-                if Utility.Trim(volume) == Utility.Trim(v_volume) then
-                    SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (exact).", entryId)
-                    table.insert(matchingItems, v_entry)
-                end
-            else
-                if string.find(volume, v_volume, 1, true) then
-                    SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (substring).", entryId)
-                    table.insert(matchingItems, v_entry)
+            if v_volume and v_volume ~= "" then
+                if exact then
+                    if Utility.Trim(volume) == Utility.Trim(v_volume) then
+                        SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (exact).", entryId)
+                        table.insert(matchingItems, v_entry)
+                    end
+                else
+                    if string.find(volume, v_volume, 1, true) then
+                        SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (substring).", entryId)
+                        table.insert(matchingItems, v_entry)
+                    end
                 end
             end
         end
     end
 
-    return matchingItems
+    return matchingItems;
 end
 
 function SierraApi:GetVarFieldValue (itemRecord, varField, subField)
@@ -628,71 +633,29 @@ function SierraApi:BuildItemsWebClient ()
 end
 
 
-function SierraApi:HandleUploadError (returnedError, apiEndpoint)
-    --[[
-        Handles errors and exceptions that were
+function SierraApi:HandleUploadError(returnedError)
+	local message = "";
 
-        apiEndpoint is a required parameter that determines
-        which error handler to use.
-    ]]
+	if returnedError and returnedError.Message then
+		message = returnedError.Message;
+		if (returnedError.InnerException) then
+			message = message .. "\r\n" .. self:HandleUploadError(returnedError.InnerException);
 
-    if not returnedError then
-        error({ Message = "returnedError cannot be null or false." })
+			if returnedError.InnerException.Response and returnedError.InnerException.Response ~= "Response" then
+				-- This is necessary to get the response body from exceptions thrown by WebClients.
+				local streamReader = SierraApi.Types["StreamReader"](returnedError.InnerException.Response:GetResponseStream());
+				local responseContent = streamReader:ReadToEnd();
+                local response = JsonParser:ParseJSON(tostring(responseContent));
 
-    elseif SierraApi:IsType(returnedError, "LuaInterface.LuaScriptException") and returnedError.InnerException and SierraApi:IsType(returnedError.InnerException, "System.Net.WebException") then
+				message = message .. "\r\nDetails: " .. (response["httpStatus"] or "") .. " - " .. (response["name"] or "") .. " - " .. (response["description"] or "");
+			end
+		end
+	elseif returnedError then
+		message = returnedError;
+	end
 
-		SierraApi.Log:Debug("Handling error encountered when receiving API response")
-		SierraApi.Log:Debug("HTTP Error: " .. returnedError.InnerException.Message)
-
-        if returnedError.InnerException.Response then
-            SierraApi.Log:Debug("Attempting to parse response error from Sierra API.")
-
-            local webExceptionResponse = returnedError.InnerException.Response
-			local responseStream = webExceptionResponse:GetResponseStream();
-
-			if responseStream then
-				local responseStreamReader = SierraApi.Types["StreamReader"](responseStream)
-				if responseStreamReader then
-					local responseString = responseStreamReader:ReadToEnd();
-					if responseString then
-                        SierraApi.Log:DebugFormat("Response: {0}", responseString)
-
-                        local errorMessageOpener = "A call to the Sierra API returned an error."
-
-                        if apiEndpoint == SierraApi.ApiEndpoints.info then
-                            errorMessageOpener = "A call to the Sierra /info API returned an error."
-
-                        elseif apiEndpoint == SierraApi.ApiEndpoints.items then
-                            errorMessageOpener = "A call to the Sierra /items API returned an error."
-                        end
-
-                        SierraApi:HandleSierraApiError(errorMessageOpener, responseString)
-                    end
-                end
-            end
-        end
-
-        -- If the parsing of the response failed:
-        returnedError = returnedError.InnerException
-
-    elseif SierraApi:IsType(returnedError, "LuaInterface.LuaScriptException") and returnedError.InnerException and SierraApi:IsType(returnedError.InnerException, "System.Net.Sockets.SocketException") then
-
-        SierraApi.Log:Debug("Handling error encountered with web socket")
-		SierraApi.Log:Debug("HTTP Error: " .. returnedError.InnerException.Message)
-
-        returnedError = returnedError.InnerException
-
-    elseif type(returnedError) == "string" and returnedError ~= "" then
-        returnedError = { Message = returnedError }
-
-    elseif not returnedError.Message then
-        returnedError.Message = "A .NET exception occurred while interacting with the Sierra API." 
-
-    end
-
-    error(returnedError)
+    return message;
 end
-
 
 function SierraApi:HandleSierraApiError (errorMessageOpener, infoResponse)
     --[[
@@ -876,7 +839,7 @@ function TimerElapsed (eventArgs)
             end)
 
             if not successfulAddonExecution then
-                SierraApi:HandleUploadError(error, SierraApi.ApiEndpoints.info)
+                SierraApi:HandleUploadError(error)
             end
         end)
 
@@ -931,7 +894,7 @@ function HandleRequests ()
                                 transactionVolume = match.Value
                             end
                     else
-                        Log:DebugFormat("Getting volume source field {1}", Settings.VolumeSourceField)
+                        Log:DebugFormat("Getting volume source field {0}", Settings.VolumeSourceField)
                         transactionVolume = GetFieldValue("Transaction", Settings.VolumeSourceField)
                     end
                     return transactionBibId, transactionVolume
@@ -1011,4 +974,29 @@ function HandleRequests ()
         ExecuteCommand("Route", { tn, Settings.ErrorRouteQueue })
 
     end
+end
+
+function TraverseError(err)
+    if not err.GetType then
+        -- Not a .NET type
+        return nil;
+    else
+        if not err.Message then
+            -- Not a .NET exception
+            Log:Info(tostring(err));
+            return nil;
+        end
+    end
+
+    Log:Debug(err.Message);
+
+    if err.InnerException then
+        return TraverseError(err.InnerException);
+    else
+        return err.Message;
+    end
+end
+
+function OnError(err)
+    TraverseError(err);
 end
