@@ -352,7 +352,7 @@ function SierraApi:GetItems (bibId, volume, exact)
         the items that match the specified bibId
         and volume.
 
-        Requires a bibId, and a volume.
+        Requires a bibId.
 
         exact is a boolean value that will determine whether
         or not to match the string exactly.
@@ -368,11 +368,7 @@ function SierraApi:GetItems (bibId, volume, exact)
     ]]
 
     if (not type(bibId) == "string") or bibId == "" then
-        error({ Message = "bibId must be a non-empty string" })
-
-    elseif (not type(volume) == "string") or volume == "" then
-        error({ Message = "volume must be a non-empty string" })
-
+        error({ Message = "bibId must be a non-empty string" });
     end
 
     SierraApi.Log:Info("Getting Items using Sierra Items API")
@@ -410,15 +406,18 @@ function SierraApi:GetItems (bibId, volume, exact)
             if v_volume and v_volume ~= "" and volume and volume ~= "" then
                 if exact then
                     if Utility.Trim(volume) == Utility.Trim(v_volume) then
-                        SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (exact).", entryId)
+                        SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (exact).", entryId);
                         table.insert(matchingItems, v_entry)
                     end
                 else
                     if string.find(volume, v_volume, 1, true) then
-                        SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (substring).", entryId)
+                        SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (substring).", entryId);
                         table.insert(matchingItems, v_entry)
                     end
                 end
+            elseif (not volume or volume == "") and (not v_volume or v_volume == "") then
+                SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId.", entryId);
+                table.insert(matchingItems, v_entry);
             end
         end
     end
