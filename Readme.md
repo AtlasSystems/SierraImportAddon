@@ -112,8 +112,8 @@ All error cases add a note to the transaction and then route the transaction to 
 
 The addon will route transactions into the error queue for any of the following reasons.
 
-- BibID or Volume was not present in the specified fields of the transaction
+- BibID was not present in the specified fields of the transaction
 - The connection to Sierra's API failed
 - The API request failed
-- The API request returned 0 results
-- The API request returned more than 1 single result
+- The API request returned 0 matching results
+- The API request returned more than 1 matching result
