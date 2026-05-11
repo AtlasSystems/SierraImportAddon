@@ -830,7 +830,7 @@ function HandleRequests ()
     Log:DebugFormat("Found transaction number {0} in \"{1}\"", tn, Settings.RequestMonitorQueue)
 
     local regex
-    if Settings.VolumeSourceFieldRegularExpressionn and Settings.VolumeSourceFieldRegularExpression ~= "" then
+    if Settings.VolumeSourceFieldRegularExpression and Settings.VolumeSourceFieldRegularExpression ~= "" then
         regex = Types["Regex"](Settings.VolumeSourceFieldRegularExpression)
         Log:DebugFormat("Found Regex \"{0}\" for VolumeSourceField.", Settings.VolumeSourceFieldRegularExpression)
     else
