@@ -1,7 +1,7 @@
 <Configuration>
   <Name>Sierra ILS Data Import Server Addon - Test Build</Name>
   <Author>Atlas Systems, Inc.</Author>
-  <Version>1.2.0</Version>
+  <Version>1.3.0</Version>
   <Active>true</Active>
   <Type>Server</Type>
 
@@ -66,6 +66,14 @@
 
     <Setting name="VolumeSourceFieldRegularExpression" type="string" value="([B,b]ox\s*\d+)">
       <Description>A regular expression for parsing the volume from the field specified in the VolumeSourceField setting. The matched result will be used instead of the value from the VolumeSourceField, whenever volume information is compared. If this is set to blank, the actual value from the VolumeSourceField will be used.</Description>
+    </Setting>
+
+    <Setting name="LocationDestinationField" type="string" value="SubLocation">
+      <Description>Specifies the transaction field where the matched Sierra item's location information should be stored. The value of this setting is optional. If specified, the value of this setting must match the name of a column from the Transactions table. If left blank, no location information will be written.</Description>
+    </Setting>
+
+    <Setting name="LocationValueType" type="string" value="name">
+      <Description>Determines which property of the Sierra item's location is written to the LocationDestinationField. Set to "name" to use the location's display name or "code" to use the location's code. Any value other than "code" is treated as "name".</Description>
     </Setting>
   </Settings>
   <Files>

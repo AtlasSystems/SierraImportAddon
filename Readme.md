@@ -4,6 +4,12 @@ This addon imports ILS data from Sierra's Items API for transactions that are in
 
 ## Changelog
 
+- `v1.3.0`
+  - Added option to import the matched Sierra item's location into a configurable Transaction field via the new `LocationDestinationField` and `LocationValueType` settings.
+  - Fixed a typo in the `VolumeSourceFieldRegularExpression` guard that prevented the configured regex from ever being applied. Sites with a non-empty regex (including the shipped default) will now see the regex used during volume matching.
+  - Hardened regex-based volume parsing: the regex is now skipped when the source field is nil or blank, the original field value is preserved when the regex finds no match, and zero-width regex matches no longer overwrite the volume with an empty string.
+  - Redacted `ClientKey`, `ClientSecret`, and Sierra API access tokens from the addon's log output. These values were previously written to the log at the DEBUG level on every timer tick.
+
 - `v1.1.0`
   - Added ability to parse volume information via regular expressions.
   - Added exact matching options on volume information.
@@ -95,6 +101,18 @@ Determines how the addon compares volume information between the Transaction rec
 A regular expression for parsing the volume from the field specified in the VolumeSourceField setting. The matched result will be used instead of the value from the VolumeSourceField, whenever volume information is compared. If this is set to blank, the actual value from the VolumeSourceField will be used.
 
 *EXAMPLE*: `([B,b]ox\s*\d+)` will parse all box numbers only
+
+### LocationDestinationField
+
+Specifies the transaction field where the matched Sierra item's location information should be stored. The value of this setting is optional. If specified, the value of this setting must match the name of a column from the Transactions table. If left blank, no location information will be written.
+
+*Default*: `SubLocation`
+
+### LocationValueType
+
+Determines which property of the Sierra item's location is written to the `LocationDestinationField`. Set to `name` to use the location's display name or `code` to use the location's code. Any value other than `code` is treated as `name`. If the Sierra response does not contain location data, the destination field is left unchanged and a warning is logged (the transaction is still routed to the success queue).
+
+*Default*: `name`
 
 ## Workflow Summary
 
