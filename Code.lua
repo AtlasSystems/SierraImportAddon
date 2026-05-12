@@ -252,7 +252,7 @@ function SierraApi:UpdateAccessToken(clientKey, clientSecret)
     ]]
 
     local accessToken = self:GetAccessToken(clientKey, clientSecret)
-    SierraApi.Log:DebugFormat("Updated Access Token: {0}", accessToken)
+    SierraApi.Log:Debug("Updated Access Token: [REDACTED]")
     self.AccessToken = accessToken
     return accessToken
 end
@@ -307,7 +307,7 @@ function SierraApi:GetAccessTokenResponse (clientKey, clientSecret)
 
 
     local authUploadSuccess, authUploadResult = pcall(function()
-        SierraApi.Log:DebugFormat("Encoded Client Key and Secret: {0}", encodedKeyAndSecret)
+        SierraApi.Log:Debug("Encoded Client Key and Secret: [REDACTED]")
         SierraApi.Log:DebugFormat("Posting to URL: {0}", authTokenUrl)
         return credentialWebClient:UploadString(authTokenUrl, uploadMethod, uploadBody)
     end)
@@ -318,7 +318,7 @@ function SierraApi:GetAccessTokenResponse (clientKey, clientSecret)
         SierraApi.Log:Warn("Failure occurred while obtaining access token.")
         error(authUploadResult)
     else
-        SierraApi.Log:DebugFormat("Access Token Response: {0}", authUploadResult)
+        SierraApi.Log:Debug("Access Token Response: [REDACTED]")
     end
 
 
@@ -737,6 +737,9 @@ Settings.VolumeSourceFieldRegularExpression = GetSetting("VolumeSourceFieldRegul
 Settings.ExactSearch = GetSetting("ExactSearch")
 Settings.ReplaceVolumeWhenNotNull = GetSetting("ReplaceVolumeWhenNotNull")
 
+Settings.LocationDestinationField = GetSetting("LocationDestinationField")
+Settings.LocationValueType = GetSetting("LocationValueType")
+
 
 luanet.load_assembly("System")
 luanet.load_assembly("log4net")
@@ -782,7 +785,11 @@ function TimerElapsed (eventArgs)
 
         Log:Debug("Addon Settings: ")
         for settingKey, settingValue in pairs(Settings) do
-            Log:DebugFormat("{0}: {1}", settingKey, settingValue)
+            if settingKey == "ClientKey" or settingKey == "ClientSecret" then
+                Log:DebugFormat("{0}: [REDACTED]", settingKey)
+            else
+                Log:DebugFormat("{0}: {1}", settingKey, settingValue)
+            end
         end
 
         local successfulAddonExecution, error = pcall(function()
@@ -792,7 +799,7 @@ function TimerElapsed (eventArgs)
                 end
 
                 local accessToken = sierraApi:UpdateAccessToken(Settings.ClientKey, Settings.ClientSecret)
-                Log:DebugFormat("Generated Access Token: {0}", accessToken)
+                Log:Debug("Generated Access Token: [REDACTED]")
 
                 ProcessDataContexts("TransactionStatus", Settings.RequestMonitorQueue, "HandleRequests")
             end)
@@ -844,17 +851,16 @@ function HandleRequests ()
                     Log:DebugFormat("Getting BibID from transaction.{0}", Settings.BibIdSourceField)
                     local transactionBibId = GetFieldValue("Transaction", Settings.BibIdSourceField)
                     transactionBibId = transactionBibId:gsub("%D", "")
-                    local transactionVolume
-                    if regex ~= nil then
-                        match = regex:Match(GetFieldValue("Transaction", Settings.VolumeSourceField))
-                            if match.Success then
-                                Log:DebugFormat("Using Regex for volume source field {0} results in match \"{1}\"",
-                                    Settings.VolumeSourceField, match.Value)
-                                transactionVolume = match.Value
+                    local transactionVolume = GetFieldValue("Transaction", Settings.VolumeSourceField);
+                    if regex ~= nil and NotNilOrBlank(transactionVolume) then
+                        local match = regex:Match(transactionVolume);
+                            if match.Success and match.Value ~= "" then
+                                Log:DebugFormat("Using Regex for volume source field {0} results in match \"{1}\"", Settings.VolumeSourceField, match.Value);
+                                transactionVolume = match.Value;
                             end
                     else
                         Log:DebugFormat("Getting volume source field {0}", Settings.VolumeSourceField)
-                        transactionVolume = GetFieldValue("Transaction", Settings.VolumeSourceField)
+                        transactionVolume = transactionVolume;
                     end
                     return transactionBibId, transactionVolume
                 end
@@ -916,6 +922,27 @@ function HandleRequests ()
 
                 SetFieldValue("Transaction", Settings.BarcodeDestinationField, sierraRecord.barcode)
                 SaveDataSource("Transaction")
+            end
+
+            if Settings.LocationDestinationField and Settings.LocationDestinationField ~= "" then
+                Log:Debug("Populating location destination field")
+
+                local locationValue
+                if sierraRecord.location then
+                    if Settings.LocationValueType == "code" then
+                        locationValue = sierraRecord.location.code
+                    else
+                        locationValue = sierraRecord.location.name
+                    end
+                end
+
+                if locationValue and locationValue ~= "" then
+                    SetFieldValue("Transaction", Settings.LocationDestinationField, locationValue)
+                    SaveDataSource("Transaction")
+                else
+                    Log:WarnFormat("Sierra item record does not contain location.{0}; leaving {1} unchanged.",
+                        Settings.LocationValueType, Settings.LocationDestinationField)
+                end
             end
 
             return nil
