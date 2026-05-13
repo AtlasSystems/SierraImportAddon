@@ -403,7 +403,7 @@ function SierraApi:GetItems (bibId, volume, exact)
             local entryId = v_entry.id or ""
             local v_volume = SierraApi:GetVarFieldValue(v_entry, "v")
 
-            if v_volume and v_volume ~= "" and volume and volume ~= "" then
+            if not IsNilOrBlank(v_volume) and not IsNilOrBlank(volume) then
                 if exact then
                     if Utility.Trim(volume) == Utility.Trim(v_volume) then
                         SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId and volume (exact).", entryId);
@@ -415,7 +415,7 @@ function SierraApi:GetItems (bibId, volume, exact)
                         table.insert(matchingItems, v_entry)
                     end
                 end
-            elseif (not volume or volume == "") and (not v_volume or v_volume == "") then
+            elseif IsNilOrBlank(volume) and IsNilOrBlank(v_volume) then
                 SierraApi.Log:DebugFormat("Sierra item record \"{0}\" matches specified bibId.", entryId);
                 table.insert(matchingItems, v_entry);
             end
@@ -459,7 +459,7 @@ function SierraApi:GetVarFieldValue (itemRecord, varField, subField)
     for i_vf, v_varField in ipairs(itemRecord.varFields or {}) do
         if v_varField and v_varField.fieldTag == varField then
 
-            if subField and subField ~= "" then
+            if not IsNilOrBlank(subField) then
 
                 for i_sf, v_subField in ipairs(v_varField.subFields or {}) do
 
@@ -621,7 +621,7 @@ function SierraApi:BuildItemsWebClient ()
     webClient.Headers:Clear()
     webClient.Headers:Add("Authorization", "Bearer " .. self.AccessToken)
 
-    if self.UserAgent and self.UserAgent ~= "" then
+    if not IsNilOrBlank(self.UserAgent) then
         webClient.Headers:Add("User-Agent", self.UserAgent)
     end
 
@@ -837,7 +837,7 @@ function HandleRequests ()
     Log:DebugFormat("Found transaction number {0} in \"{1}\"", tn, Settings.RequestMonitorQueue)
 
     local regex
-    if Settings.VolumeSourceFieldRegularExpression and Settings.VolumeSourceFieldRegularExpression ~= "" then
+    if not IsNilOrBlank(Settings.VolumeSourceFieldRegularExpression) then
         regex = Types["Regex"](Settings.VolumeSourceFieldRegularExpression)
         Log:DebugFormat("Found Regex \"{0}\" for VolumeSourceField.", Settings.VolumeSourceFieldRegularExpression)
     else
@@ -852,7 +852,7 @@ function HandleRequests ()
                     local transactionBibId = GetFieldValue("Transaction", Settings.BibIdSourceField)
                     transactionBibId = transactionBibId:gsub("%D", "")
                     local transactionVolume = GetFieldValue("Transaction", Settings.VolumeSourceField);
-                    if regex ~= nil and NotNilOrBlank(transactionVolume) then
+                    if regex ~= nil and not IsNilOrBlank(transactionVolume) then
                         local match = regex:Match(transactionVolume);
                             if match.Success and match.Value ~= "" then
                                 Log:DebugFormat("Using Regex for volume source field {0} results in match \"{1}\"", Settings.VolumeSourceField, match.Value);
@@ -904,7 +904,7 @@ function HandleRequests ()
                 SaveDataSource("Transaction")
             end
 
-            if Settings.VolumeDestinationField and Settings.VolumeDestinationField ~= "" then
+            if not IsNilOrBlank(Settings.VolumeDestinationField) then
                 local currentVolumeDestinationField = GetFieldValue("Transaction", Settings.VolumeDestinationField)
                 if (Settings.ReplaceVolumeWhenNotNull or (not currentVolumeDestinationField) or currentVolumeDestinationField == "") then
                     Log:Debug("Populating volume destination field")
@@ -913,7 +913,7 @@ function HandleRequests ()
                 end
             end
 
-            if Settings.BarcodeDestinationField and Settings.BarcodeDestinationField ~= "" then
+            if not IsNilOrBlank(Settings.BarcodeDestinationField) then
                 Log:Debug("Populating barcode destination field")
 
                 if (not type(sierraRecord.barcode) == "string") or sierraRecord.barcode == "" then
@@ -924,7 +924,7 @@ function HandleRequests ()
                 SaveDataSource("Transaction")
             end
 
-            if Settings.LocationDestinationField and Settings.LocationDestinationField ~= "" then
+            if not IsNilOrBlank(Settings.LocationDestinationField) then
                 Log:Debug("Populating location destination field")
 
                 local locationValue
@@ -936,7 +936,7 @@ function HandleRequests ()
                     end
                 end
 
-                if locationValue and locationValue ~= "" then
+                if not IsNilOrBlank(locationValue) then
                     SetFieldValue("Transaction", Settings.LocationDestinationField, locationValue)
                     SaveDataSource("Transaction")
                 else
@@ -960,6 +960,14 @@ function HandleRequests ()
         ExecuteCommand("Route", { tn, Settings.ErrorRouteQueue })
 
     end
+end
+
+function IsNilOrBlank(value)
+	if not value or value == "" then
+		return true;
+	else
+		return false;
+	end
 end
 
 function TraverseError(err)
